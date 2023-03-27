@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+ORB_SLAM3/
+litamin_ws/
