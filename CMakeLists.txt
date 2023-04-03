@@ -181,7 +181,20 @@ add_subdirectory(${ORB_SLAM_DIR}/Thirdparty/g2o)
 add_executable(test_out_thing
         test.cc)
 
+add_executable(driver
+		driver.cc ${LITAMIN_DIR}/src/dataloader/dataset.cpp
+	${LITAMIN_DIR}/src/Visualizer.cpp
+)
+
 target_link_libraries(test_out_thing 
+        ORB_SLAM
+        ${catkin_LIBRARIES}
+        ${CERES_LIBRARIES}
+        ${PCL_LIBRARIES}
+        litamin   
+)
+
+target_link_libraries(driver
         ORB_SLAM
         ${catkin_LIBRARIES}
         ${CERES_LIBRARIES}

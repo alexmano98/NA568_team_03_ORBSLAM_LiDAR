@@ -39,24 +39,38 @@ usage: ./driver [single/double] path_to_vocabulary path_to_settings path_to_sequ
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
 
-
+#include "dataloader/dataset.hpp"
 #include <fast_gicp/gicp/fast_gicp.hpp>
 #include "fast_gicp/gicp/impl/fast_gicp_impl.hpp"
 #include <litamin2/litamin2point2voxel.hpp>
+#include "litamin2/litamin2point2voxelnewton.hpp"
 
+
+using namespace litamin;
 using namespace std;
 
+
+Sophus::SE3f orbslam3_litamin2(ORB_SLAM3::System &SLAM, const string &litamin_file, const cv::Mat &im_left, const cv::Mat &im_right, const double &tframe);
+
+Sophus::SE3f litamin2_orbslam3(const string &slam_file, auto &iterator_ptr, vector<Eigen::Isometry3d, Eigen::aligned_allocator<Eigen::Isometry3d>> &poses,
+    litamin::LiTAMIN2Point2Voxel<pcl::PointXYZ, pcl::PointXYZ> &litamin2, pcl::ApproximateVoxelGrid<pcl::PointXYZ> &voxelgrid, pcl::visualization::PCLVisualizer &vis, 
+     pcl::PointCloud<pcl::PointXYZ>::Ptr &trajectory, int frame_id);
+
 void load_images(const string &strPathToSequence, vector<string> &vstrImageLeft,
-                vector<string> &vstrImageRight, vector<double> &vTimestamps);
+                vector<string> &vstrImageRight, vector<double> &v_timestamps);
 
 int main(int argc, char **argv) {
 
     // Get arguments
-    if(argc != 8) {
-        cerr << "INCORRECT NUMBER OF ARGUMENTS\nUSAGE: ./driver [single/double] path_to_vocabulary path_to_settings 
-                path_to_sequence path_to_kitti_dataset dataset_type out_path\n";
+    if(argc != 11) {
+        cerr << "INCORRECT NUMBER OF ARGUMENTS\nUSAGE: ./driver [single/double] path_to_vocabulary path_to_settings path_to_sequence path_to_kitti_dataset dataset_type out_path slam_file litamin_file output_loc\n";
         return 1;
     }
+
+    string slam_file = argv[8];
+    string litamin_file = argv[9];
+    string out_file = argv[10];
+
     string mode = argv[1];
     string path_to_vocabulary = argv[2];
     string path_to_settings = argv[3];
@@ -82,11 +96,11 @@ int main(int argc, char **argv) {
     // TODO setup litamin
     DatasetOptions dataset_options;
     dataset_options.root_path = argv[5];
-    strign dataset_type = argv[6];
+    string dataset_type = argv[6];
     if(dataset_type == "KITI_raw") {
-        dataset_options.dataset = KITTI_raw;
+        dataset_options.dataset = litamin::KITTI_raw;
     } else if(dataset_type == "KITTI") {
-        dataset_options.dataset = KITTI;
+        dataset_options.dataset = litamin::KITTI;
     }
 
     string out_path = argv[7];
@@ -152,11 +166,55 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Read in slam_file
+    //****************************************************************************************************
+    // Eigen::Isometry3d a;
+    
+    ifstream infile(slam_file);
+      // read txt file
+
+    string line;
+    int index = 0;
+    while (getline(infile, line))
+    {
+        // Eigen::Isometry3d temp;
+        Eigen::Isometry3d T1=Eigen::Isometry3d::Identity();
+        // store each line into row 
+        vector<double> row;
+        for (int i = 0; i < 12; i++)
+        {
+            double num;
+            infile >> num;
+            row.push_back(num);
+            cout<<num<<endl;
+
+        }
+        
+        vector<vector<double>> matrix(3, vector<double>(4));
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                //matrix[i][j] = row[i * 4 + j];
+                T1(i,j) = row[i*4+j];
+            }
+        }
+
+        // poses.push_back(matrix);
+        poses[index] = T1;
+        cout<<poses[index](0,0);
+        index++;
+    }
+;
+//****************************************************************************************************
+
+
 
     // Main loop
     cv::Mat im_left, im_right;
 
     Sophus::SE3f pose;
+    std::vector<Sophus::SE3f> out_poses(seq_size);
 
     for(int ni = 0; ni < n_images; ni++) {
 
@@ -208,31 +266,95 @@ int main(int argc, char **argv) {
         frame_id++;
         pcl::PointCloud<pcl::PointXYZ> frame = iterator_ptr->Next();
         
+        Sophus::SE3f pose_next;
 
         if(mode == "single") {
             // Pass only to ORBLAM3->Litamin2
-            pose_next = orbslam3_litamin2(pose, tframe, im_left, im_right, frame)
+            pose_next = orbslam3_litamin2(SLAM, litamin_file, im_left, im_right, tframe);
 
         } else if(mode == "double") {
             // Pass to ORBSLAM3->Litamin2 and Litamin2->ORBSLAM3
-            pose_1 = orbslam3_litamin2(pose, tframe, im_left, im_right, frame)
-            pose_2 = litmain2_orbslame3(pose, tframe, im_left, im_right, frame)
+            Sophus::SE3f pose_1 = orbslam3_litamin2(SLAM, litamin_file, im_left, im_right, tframe);
+            Sophus::SE3f pose_2 = litamin2_orbslam3(slam_file, iterator_ptr, poses, litamin2, voxelgrid, vis, trajectory, ni);
 
-            // Do something with the poses
-            pose_next = ...
+            // Average poses
+            auto translation_matrix = (pose_1.translation() + pose_2.translation()) / 2;
+            // auto translation_matrix = pose_1.translation();
+            auto rotation_matrix = pose_1.rotationMatrix(); // There is no easy way to average rotations, so just use one of them
+            pose_next = Sophus::SE3f(rotation_matrix, translation_matrix);
         }
 
         // Update pose
         pose = pose_next;
+        out_poses[ni] = pose;
 
-        // TODO Visualization
+        // time
+
+        // Visualization litamin
+        trajectory->push_back(pcl::PointXYZ(poses[frame_id](0, 3), poses[frame_id](1, 3), poses[frame_id](2, 3)));
+        vis.updatePointCloud<pcl::PointXYZ>(trajectory, pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ>(trajectory, 255.0, 0.0, 0.0), "trajectory");
+        vis.spinOnce();   
+
+        // time
+        #ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+#else
+        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
+#endif
+
+#ifdef REGISTER_TIMES
+        t_track = t_resize + std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t2 - t1).count();
+        SLAM.InsertTrackTime(t_track);
+#endif
+
+        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+
+        v_times_track[ni]=ttrack;
+
+        // Wait to load the next frame
+        double T=0;
+        if(ni<n_images-1)
+            T = v_timestamps[ni+1]-tframe;
+        else if(ni>0)
+            T = tframe-v_timestamps[ni-1];
+
+        if(ttrack<T)
+            usleep((T-ttrack)*1e6);
+
+    // TODO set this with argument/filesize or is this even necessary
+        // if(ni == 800) {
+        //     break;
+        // }  
+
 
     }
+
+    // save the estimated poses
+    std::string out_file_path;
+    std::stringstream ss;
+    ss << std::setw(2) << std::setfill('1') << sequence_id << ".txt";
+    out_file_path = out_file;
+    cout << out_file_path << endl;
+    std::ofstream ofs(out_file_path);
+    for (const auto& pose : poses) {
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 4; j++) {
+          if (i || j) {
+            ofs << " ";
+          }
+
+          ofs << pose(i, j);
+        }
+      }
+      ofs << std::endl;        
+    }
+
+    return 0;
 }
 
 // Taken from example code
 void load_images(const string &strPathToSequence, vector<string> &vstrImageLeft,
-                vector<string> &vstrImageRight, vector<double> &vTimestamps)
+                vector<string> &vstrImageRight, vector<double> &v_timestamps)
 {
     ifstream fTimes;
     string strPathTimeFile = strPathToSequence + "/times.txt";
@@ -247,14 +369,14 @@ void load_images(const string &strPathToSequence, vector<string> &vstrImageLeft,
             ss << s;
             double t;
             ss >> t;
-            vTimestamps.push_back(t);
+            v_timestamps.push_back(t);
         }
     }
 
     string strPrefixLeft = strPathToSequence + "/image_0/";
     string strPrefixRight = strPathToSequence + "/image_1/";
 
-    const int nTimes = vTimestamps.size();
+    const int nTimes = v_timestamps.size();
     vstrImageLeft.resize(nTimes);
     vstrImageRight.resize(nTimes);
 
@@ -265,4 +387,52 @@ void load_images(const string &strPathToSequence, vector<string> &vstrImageLeft,
         vstrImageLeft[i] = strPrefixLeft + ss.str() + ".png";
         vstrImageRight[i] = strPrefixRight + ss.str() + ".png";
     }
+}
+
+Sophus::SE3f orbslam3_litamin2(ORB_SLAM3::System &SLAM, const string &litamin_file, const cv::Mat &im_left, const cv::Mat &im_right, const double &tframe) {
+    return SLAM.TrackStereo(true, litamin_file, im_left, im_right, tframe);
+}
+
+Sophus::SE3f litamin2_orbslam3(const string &slam_file, auto &iterator_ptr, vector<Eigen::Isometry3d, Eigen::aligned_allocator<Eigen::Isometry3d>> &poses,
+    litamin::LiTAMIN2Point2Voxel<pcl::PointXYZ, pcl::PointXYZ> &litamin2, pcl::ApproximateVoxelGrid<pcl::PointXYZ> &voxelgrid, pcl::visualization::PCLVisualizer &vis,
+     pcl::PointCloud<pcl::PointXYZ>::Ptr &trajectory, int frame_id) {
+    pcl::PointCloud<pcl::PointXYZ> frame = iterator_ptr->Next();
+    // cout << "Seq.Frame_id: [" << sequence_id << "] - " << frame_id << endl; 
+        // cout << "frame pts num: " << frame.size() << endl;
+
+    // set the current frame as source
+    voxelgrid.setInputCloud(frame.makeShared());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr source(new pcl::PointCloud<pcl::PointXYZ>);
+    voxelgrid.filter(*source);
+    litamin2.setInputSource(source);
+
+    // align and swap source and target cloud for next registration
+    pcl::PointCloud<pcl::PointXYZ>::Ptr aligned(new pcl::PointCloud<pcl::PointXYZ>);
+    litamin2.align(*aligned);      
+    litamin2.swapSourceAndTarget();
+
+    // accumulate pose
+    poses[frame_id] = poses[frame_id - 1] * litamin2.getFinalTransformation().cast<double>();
+
+    //   for (int i = 0; i < 3; i++) {
+    //     for (int j = 0; j < 4; j++) {
+    //       // if (i || j) {
+    //         cout << poses[frame_id](i,j)<<" ";
+    //       // }
+
+    //       // ofs << pose(i, j);
+    //     }
+    //     cout << endl;
+    //   }
+
+    // visualization
+    trajectory->push_back(pcl::PointXYZ(poses[frame_id](0, 3), poses[frame_id](1, 3), poses[frame_id](2, 3)));
+    vis.updatePointCloud<pcl::PointXYZ>(trajectory, pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ>(trajectory, 255.0, 0.0, 0.0), "trajectory");
+    vis.spinOnce();
+
+    // Convert pose to SE3f
+    Eigen::Matrix<float, 3, 3> R = poses[frame_id].rotation().cast<float>();
+    Eigen::Matrix<float, 3, 1> t = poses[frame_id].translation().cast<float>();
+    // Sophus::SE3f pose(R, t);
+    return Sophus::SE3f(R,t);
 }
