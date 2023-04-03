@@ -33,3 +33,6 @@
 
 ORB_SLAM3/
 litamin_ws/
+build/
+.vscode/
+out/
