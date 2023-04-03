@@ -8,3 +8,10 @@ In CMakeLists.txt:
 	Change lines 160 and 161 to wherever you have libDBoW2.so and libg2o.so located. These may only appear after you build ORBSLAM3.
 	Modify executable to what you want TODO for later once we have code set up
 
+To build and compile, use the following commands inside the main directory:
+	mkdir build
+	cd build
+	cmake ..
+	make -j4
+
+Files are output to the out/ folder in the main directory
