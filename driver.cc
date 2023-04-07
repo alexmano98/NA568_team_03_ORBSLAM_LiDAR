@@ -1,7 +1,7 @@
 /*
 Driver for combination of ORBSLAM3 and Litamin2 integration
 
-usage: ./driver [single/double] path_to_vocabulary path_to_settings path_to_sequence path_to_kitti_dataset dataset_type out_path
+usage: ./driver [single/double] path_to_vocabulary path_to_settings path_to_sequence path_to_kitti_dataset dataset_type slam_file litamin_file output_loc
 */
 
 
@@ -62,14 +62,14 @@ void load_images(const string &strPathToSequence, vector<string> &vstrImageLeft,
 int main(int argc, char **argv) {
 
     // Get arguments
-    if(argc != 11) {
-        cerr << "INCORRECT NUMBER OF ARGUMENTS\nUSAGE: ./driver [single/double] path_to_vocabulary path_to_settings path_to_sequence path_to_kitti_dataset dataset_type out_path slam_file litamin_file output_loc\n";
+    if(argc != 10) {
+        cerr << "INCORRECT NUMBER OF ARGUMENTS\nUSAGE: ./driver [single/double] path_to_vocabulary path_to_settings path_to_sequence path_to_kitti_dataset dataset_type slam_file litamin_file output_loc\n";
         return 1;
     }
 
-    string slam_file = argv[8];
-    string litamin_file = argv[9];
-    string out_file = argv[10];
+    string slam_file = argv[7];
+    string litamin_file = argv[8];
+    string out_file = argv[9];
 
     string mode = argv[1];
     string path_to_vocabulary = argv[2];
@@ -103,7 +103,6 @@ int main(int argc, char **argv) {
         dataset_options.dataset = litamin::KITTI;
     }
 
-    string out_path = argv[7];
     auto sequences = get_sequences(dataset_options);
     int num_sequences = (int) sequences.size(); // TODO might only be one sequence??
 
