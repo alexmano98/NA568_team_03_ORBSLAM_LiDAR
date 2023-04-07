@@ -3,6 +3,9 @@ NA 568 WN 23 Team 03 Final Project
 
 How to compile:
 
+Move System.cc to ${ORB_SLAM_DIR}/src and overwrite
+Move System.h to ${ORB_SLAM_DIR}/include
+
 In CMakeLists.txt:
 	Change lines 10 and 11 to wherever you have ORB_SLAM3 and litamin installed
 	Change lines 160 and 161 to wherever you have libDBoW2.so and libg2o.so located. These may only appear after you build ORBSLAM3.

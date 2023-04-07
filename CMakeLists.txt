@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(ORB_SLAM3_test)
 add_definitions(-w)
-
+set(CMAKE_CXX_STANDARD 14)
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
@@ -36,7 +36,7 @@ LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 # include(${CMAKE_CURRENT_SOURCE_DIR}/ORB_SLAM3/CMakeLists.txt)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/out)
-find_package(OpenCV 4.4)
+find_package(OpenCV 3.2)
    if(NOT OpenCV_FOUND)
       message(FATAL_ERROR "OpenCV > 4.4 not found.")
    endif()
@@ -157,8 +157,8 @@ ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
 
 ###################### CHANGE THIS ###################
-/home/alexmano/Desktop/NA568/ORB_SLAM3/Thirdparty/DBoW2/lib/libDBoW2.so
-/home/alexmano/Desktop/NA568/ORB_SLAM3/Thirdparty/g2o/lib/libg2o.so
+/home/alexmano/Desktop/NA568/NA568_team_03_ORBSLAM_LiDAR-main/ORB_SLAM3/Thirdparty/DBoW2/lib/libDBoW2.so
+/home/alexmano/Desktop/NA568/NA568_team_03_ORBSLAM_LiDAR-main/ORB_SLAM3/Thirdparty/g2o/lib/libg2o.so
 ######################################################
 
 -lboost_serialization

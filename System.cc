@@ -242,7 +242,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 }
 
 //**********************readSE3fFromFile*********************************************
-Sophus::SE3f readSE3fFromFile(const std::string& filename)
+Sophus::SE3f System::readSE3fFromFile(const std::string& filename)
 {
     // Open the file
     std::ifstream file(filename);
@@ -283,7 +283,7 @@ Sophus::SE3f readSE3fFromFile(const std::string& filename)
 }
 //************************************************************************************
 
-Sophus::SE3f System::TrackStereo(bool modified, const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp, const vector<IMU::Point>& vImuMeas, string filename)
+Sophus::SE3f System::TrackStereo(bool modified, std::string litamin_file, const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp, const vector<IMU::Point>& vImuMeas, string filename)
 {
     if(mSensor!=STEREO && mSensor!=IMU_STEREO)
     {
@@ -358,7 +358,7 @@ Sophus::SE3f System::TrackStereo(bool modified, const cv::Mat &imLeft, const cv:
     Sophus::SE3f Tcw = mpTracker->GrabImageStereo(imLeftToFeed,imRightToFeed,timestamp,filename);
 
     if(modified) {
-        std::string file = "/home/guangyi/Downloads00.txt";
+        std::string file = litamin_file;
         Tcw = readSE3fFromFile(file);
     }
     
