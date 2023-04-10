@@ -21,9 +21,6 @@ usage: ./driver [single/double] path_to_vocabulary path_to_settings path_to_sequ
 
 #include <opencv2/core/core.hpp>
 
-#include <librealsense2/rs.hpp>
-#include "librealsense2/rsutil.h"
-
 
 #include <System.h>
 
