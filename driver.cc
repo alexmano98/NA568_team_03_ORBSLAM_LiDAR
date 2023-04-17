@@ -276,8 +276,13 @@ int main(int argc, char **argv) {
             // Average poses
             auto translation_matrix = (pose_1.translation() + pose_2.translation()) / 2;
             // auto translation_matrix = pose_1.translation();
-            auto rotation_matrix = pose_1.rotationMatrix(); // There is no easy way to average rotations, so just use one of them
-            pose_next = Sophus::SE3f(rotation_matrix, translation_matrix);
+            
+            auto rotation_matrix = (pose_1.rotationMatrix() + pose_2.rotationMatrix()) / 2;
+            Eigen::JacobiSVD<Eigen::Matrix<float,3,3>> svd(R);
+            auto U = svd.matrixU();
+            auto V = svd.matrixV();
+            auto Q = U * V;
+            pose_next = Sophus::SE3f(Q, translation_matrix);
         }
 
         // Update pose
